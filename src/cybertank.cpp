@@ -6,10 +6,13 @@
 #define usEcho 4
 
 // 4 IR sensors to detect the outer line, analog IN
-#define ir1 A0
-#define ir2 A1
-#define ir3 A2
-#define ir4 A3
+#define ir1 A0 // front
+#define ir2 A1 // right (going clockwise)
+#define ir3 A2 // back
+#define ir4 A3 // left
+
+// Control by the remote control of the organizer
+#define remoteStart 13
 
 // Left motor
 #define ena1 6 // left speed, Digital PWM
@@ -21,8 +24,16 @@
 #define in3 10
 #define in4 11
 
-// Constants
-int pwmFrequency = 1000;
+/**
+ * Setup the ultrasonic sensor
+ */
+void setupUltrasonic()
+{
+  // Ultrasonic sensor
+  Serial.println("Setting up ultrasonic sensor");
+  pinMode(usTrigger, OUTPUT);
+  pinMode(usEcho, INPUT);
+}
 
 // Black = inside the zone, White = zone border
 int minInZone = 300;
@@ -52,22 +63,28 @@ void setupMotors()
   pinMode(in4, OUTPUT);
 }
 
-/**
- * Setup the ultrasonic sensor
- */
-void setupUltrasonic()
+void setupRemoteControl()
 {
-  // Ultrasonic sensor
-  Serial.println("Setting up ultrasonic sensor");
-  pinMode(usTrigger, OUTPUT);
-  pinMode(usEcho, INPUT);
+  // Remote control
+  Serial.println("Setting up remote control");
+  pinMode(remoteStart, INPUT);
 }
+
+/**
+ * Read the remote control
+ * @return 1 if "Start" button is pressed, 0 otherwise
+ */
+int isStartGame()
+{
+  return digitalRead(remoteStart);
+}
+
 
 /**
  * Read all the IR sensor
  * @return the value
 */
-int readAllIR()
+void readIRInZone()
 {
   int ir1Value = analogRead(ir1);
   int ir2Value = analogRead(ir2);
@@ -82,8 +99,18 @@ int readAllIR()
   Serial.print("\tIR4: ");
   Serial.println(ir4Value > minInZone ? "Black" : "White");
   Serial.println("----");
-  return ir1Value;
+}
 
+bool isIRInZone()
+{
+  int ir1Value = analogRead(ir1);
+  int ir2Value = analogRead(ir2);
+  int ir3Value = analogRead(ir3);
+  int ir4Value = analogRead(ir4);
+
+  bool condition = ir1Value > minInZone || ir2Value > minInZone || ir3Value > minInZone || ir4Value > minInZone;
+  Serial.println(condition ? "In zone" : "Out of zone");
+  return condition;
 }
 
 /**
@@ -238,6 +265,23 @@ void turnLeft(int speed, int turnDuration)
   stopMotors();
 }
 
+void waitForGameStart()
+{
+  while(isStartGame() == 0)
+  {
+    Serial.print("Waiting for remote control to start the game...\r");
+  }
+  Serial.println("\nGame on!");
+  // countdown
+  Serial.println("3...");
+  delay(1000);
+  Serial.println("2...");
+  delay(1000);
+  Serial.println("1...");
+  delay(1000);
+  Serial.println("GO!");
+}
+
 /**
  * Main setup function
  */
@@ -250,6 +294,7 @@ void setup()
   setupMotors();
   setupIR();
   Serial.println("CyberTank is ready!");
+  waitForGameStart();
 }
 
 /**
@@ -257,14 +302,26 @@ void setup()
  */
 void loop()
 {
-  // uint8_t testSpeed = 0x32;
-  // if(getUSDistance() < 10)
-  // {
-  //   stopMotors();
-  //   delay(100);
-  //   return;
-  // }
-  readAllIR();
+  if(isStartGame() == 0)
+  {
+    Serial.println("Game over!");
+    stopMotors();
+    delay(1000);
+    endGame:
+    goto endGame;
+    // wait for the next game to start
+  }
+  // readIRInZone();
   // goForward(testSpeed, testSpeed);
-  delay(1000);
+  // isIRInZone();
+  if(getUSDistance() < 30)
+  {
+    stopMotors();
+    delay(1000);
+    // turnRight(255, 1000);
+  }
+  else
+  {
+    goForward(50, 50);
+  }
 }
