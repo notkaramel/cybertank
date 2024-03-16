@@ -35,6 +35,9 @@ void setupUltrasonic()
   pinMode(usEcho, INPUT);
 }
 
+/**
+ * Setup the IR sensors
+ */
 void setupIR()
 {
   // IR sensors
@@ -60,12 +63,17 @@ void setupMotors()
   pinMode(in4, OUTPUT);
 }
 
+/**
+ * Setup the remote control
+ */
 void setupRemoteControl()
 {
   // Remote control
   Serial.println("Setting up remote control");
   pinMode(remoteStart, INPUT);
 }
+
+/* -------------------------------- */
 
 /**
  * Read the remote control
@@ -88,14 +96,14 @@ uint16_t readSideSensor()
   int ir2Value = analogRead(ir2);
   int ir3Value = analogRead(ir3);
   int ir4Value = analogRead(ir4);
-  Serial.print("IR1: ");
-  Serial.print(ir1Value);
-  Serial.print("\tIR2: ");
-  Serial.print(ir2Value);
-  Serial.print("\tIR3: ");
-  Serial.print(ir3Value);
-  Serial.print("\tIR4: ");
-  Serial.println(ir4Value);
+  // Serial.print("IR1: ");
+  // Serial.print(ir1Value);
+  // Serial.print("\tIR2: ");
+  // Serial.print(ir2Value);
+  // Serial.print("\tIR3: ");
+  // Serial.print(ir3Value);
+  // Serial.print("\tIR4: ");
+  // Serial.println(ir4Value);
 
   uint16_t sideSensor = 0B1111;
   if (ir1Value < minInZone)
@@ -321,18 +329,18 @@ uint8_t maxSpeed = 200; // 0xFF
  * spagetti code :)
  * Handle cases when tank is at the edge of the zone.
  * 8 major cases: top, top-right, right, bottom-right, bottom, bottom-left, left, top-left
- * Corresponding binary value: 0B1000, 0B1100, 0B0100, 0B0110, 0B0010, 0B0011, 0B0001, 0B1001
+ * Corresponding binary value: 0111, 0011, 1011, 1001, 1101, 1100, 1110, 0110
  * @param sideSensor: the value of the side sensor in binary to handle the edge case
  */
 void handleEdges(uint16_t sideSensor)
 {
   int goDuration = 500;
   int turnDuration = 1000;
-  uint8_t handlingSpeed = 80; // resolve the edge case at a lower speed, but must be swiftly
-  Serial.print("Handling edge case: ");
+  uint8_t handlingSpeed = 40; // resolve the edge case at a lower speed, but must be swiftly
+  Serial.print("~~~ Handling edge case: ");
   Serial.println(sideSensor, BIN);
   // each cases shouldn't take more than 1.5 second
-  if (sideSensor == 0B1000 || sideSensor == 0B1100) // case 1 and 2
+  if (sideSensor == 0B0111 || sideSensor == 0b0011) // case 1 and 2
   {
     // top sensor sees the edge || top-right sensor sees the edge
     // back a little bit and turn right backward (left on backward, right off)
@@ -342,34 +350,34 @@ void handleEdges(uint16_t sideSensor)
     goBackward(handlingSpeed, 0);
     delay(turnDuration);
   }
-  else if (sideSensor == 0B0100) // case 3
+  else if (sideSensor == 0b1011) // case 3
   {
     // right sensor sees the edge, probably being pushed by the opponent
     // Give up?
     turnLeftForward(handlingSpeed, turnDuration);
     turnLeftForward(handlingSpeed, turnDuration);
     goForward(handlingSpeed, handlingSpeed);
-    delay(goDuration - turnDuration);
+    delay(goDuration);
   }
-  else if (sideSensor == 0B0110) // case 4
+  else if (sideSensor == 0b1001) // case 4
   {
     // bottom-right
     goForward(0, handlingSpeed);
     delay(goDuration * 2);
   }
-  else if (sideSensor == 0B0010)
+  else if (sideSensor == 0b1101)
   {
     // bottom
     goForward(handlingSpeed, handlingSpeed);
     delay(goDuration); // might change
   }
-  else if (sideSensor == 0B0011)
+  else if (sideSensor == 0b1100)
   {
     // bottom-left
     goForward(handlingSpeed, 0);
     delay(goDuration * 2);
   }
-  else if (sideSensor == 0B0001)
+  else if (sideSensor == 0b1110)
   {
     // left
     // Give up?
@@ -378,7 +386,7 @@ void handleEdges(uint16_t sideSensor)
     goForward(handlingSpeed, handlingSpeed);
     delay(goDuration);
   }
-  else if (sideSensor == 0B1001)
+  else if (sideSensor == 0b0110)
   {
     // top-left
     goBackward(handlingSpeed, handlingSpeed);
@@ -388,7 +396,7 @@ void handleEdges(uint16_t sideSensor)
   else
   {
     // in the zone
-    Serial.println("In the zone! Nothing to handle");
+    Serial.println("\t!! Nothing to handle !!");
     return; // return to the caller
   }
   Serial.println("Edge case handled!");
@@ -414,6 +422,11 @@ void waitForGameStart()
   Serial.println("GO!");
 }
 
+/**
+ * Scan for opponent
+ * @param scanSpeed: the speed of the tank when scanning
+ * @param scanTimeGap: the time gap between each scan (~ angle)
+ */
 void scanForOpponent(uint8_t scanSpeed, int scanTimeGap)
 {
   // scan for opponent
@@ -441,10 +454,10 @@ void setup()
   {
     Serial.begin(9600);
     Serial.println("CyberTank is setting up...");
-    setupRemoteControl();
-    setupUltrasonic();
     setupMotors();
     setupIR();
+    setupUltrasonic();
+    setupRemoteControl();
     isSetup = true;
     Serial.println("CyberTank is ready!");
   }
@@ -456,7 +469,7 @@ void setup()
  */
 void loop()
 {
-  Serial.println(readRemoteControl());
+  // Serial.println(readRemoteControl());
   // if (readRemoteControl() == 0)
   // {
   //   Serial.println("Game over! Please reset the board.");
@@ -468,50 +481,63 @@ void loop()
 
   // Making sure that the tank is in the zone. First priority!
   uint16_t sideSensor = readSideSensor();
-  if (sideSensor != 0B1111)
+  if (sideSensor != 0B1111 || sideSensor == 0B0000)
   {
     handleEdges(sideSensor);
-  }
-  stopMotors();
-  delay(500);
-
-  int timeDelay = 5000;
-
-  int TEST_MOTOR = 0;
-  if (TEST_MOTOR == 1)
-  {
-    goForward(minSpeed, minSpeed);
-    delay(timeDelay);
     stopMotors();
-    delay(2000);
-    goForward(lowSpeed, lowSpeed);
-    delay(timeDelay);
-    stopMotors();
-    delay(2000);
-
-    goForward(160, 160);
-    delay(timeDelay);
-    stopMotors();
-    delay(2000);
-
-    goForward(maxSpeed, maxSpeed);
-    delay(timeDelay);
-    stopMotors();
-    delay(2000);
   }
 
-  // IR zone sensor has higher priority
-  // Step 1: scan for opponent
-  if (foundOpponent == false)
+  if (getUSDistance() <= 75)
   {
-
-    // if opponent is not found, keep scanning
-    // if found, set foundOpponent to true
+    foundOpponent = true;
   }
   else
   {
-    // if opponent is found, attack
+    foundOpponent = false;
   }
+  // scan for opponent
+  if (foundOpponent == false)
+  {
+    scanForOpponent(lowSpeed, 1000);
+  }
+
+  // if opponent is found, attack
+  if (foundOpponent == true)
+  {
+    goForward(mediumSpeed, mediumSpeed);
+  }
+
+  // int timeDelay = 5000;
+
+  // int TEST_MOTOR = 0;
+  // if (TEST_MOTOR == 1)
+  // {
+  //   goForward(minSpeed, minSpeed);
+  //   delay(timeDelay);
+  //   stopMotors();
+  //   delay(2000);
+  //   goForward(lowSpeed, lowSpeed);
+  //   delay(timeDelay);
+  //   stopMotors();
+  //   delay(2000);
+
+  //   goForward(160, 160);
+  //   delay(timeDelay);
+  //   stopMotors();
+  //   delay(2000);
+
+  //   goForward(maxSpeed, maxSpeed);
+  //   delay(timeDelay);
+  //   stopMotors();
+  //   delay(2000);
+  // }
+
+  // IR zone sensor has higher priority
+  // Step 1: scan for opponent
+
+  // if opponent is not found, keep scanning
+  // if found, set foundOpponent to true
+  // if opponent is found, attack
 
   // Step 2: attack
   // if opponent is in range, attack
