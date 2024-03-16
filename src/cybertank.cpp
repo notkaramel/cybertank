@@ -1,5 +1,6 @@
 #include <Arduino.h>
 
+// All controllers/sensors uses 5V
 // 1 ultrasonic sensor
 #define usTrigger 3 // Digital PWM
 #define usEcho 4
@@ -22,7 +23,9 @@
 
 // Constants
 int pwmFrequency = 1000;
-int threshold = 500;
+
+// Black = inside the zone, White = zone border
+int minInZone = 300;
 
 void setupIR()
 {
@@ -61,25 +64,33 @@ void setupUltrasonic()
 }
 
 /**
- * Ping the IR sensors
- */
-void pingIR()
+ * Read all the IR sensor
+ * @return the value
+*/
+int readAllIR()
 {
-  int sensorValue = digitalRead(ir1); // seeing black = 1, seeing white = 0
-  if (sensorValue == 1)
-  {
-    Serial.println("IR1 sees black");
-  }
-  else
-  {
-    Serial.println("IR1 sees white");
-  }
+  int ir1Value = analogRead(ir1);
+  int ir2Value = analogRead(ir2);
+  int ir3Value = analogRead(ir3);
+  int ir4Value = analogRead(ir4);
+  Serial.print("IR1: ");
+  Serial.print(ir1Value > minInZone ? "Black" : "White");
+  Serial.print("\tIR2: ");
+  Serial.print(ir2Value > minInZone ? "Black" : "White");
+  Serial.print("\tIR3: ");
+  Serial.print(ir3Value > minInZone ? "Black" : "White");
+  Serial.print("\tIR4: ");
+  Serial.println(ir4Value > minInZone ? "Black" : "White");
+  Serial.println("----");
+  return ir1Value;
+
 }
 
 /**
  * Ping the ultrasonic sensor
+ * @return the distance in cm
  */
-void pingUS()
+int getUSDistance()
 {
   digitalWrite(usTrigger, LOW);
   delayMicroseconds(5);
@@ -90,14 +101,15 @@ void pingUS()
   int distance = duration * 0.034 / 2;
   Serial.print(distance);
   Serial.println(" cm");
+  return distance;
 }
 
 /**
- * Stop the motors
+ * Stop the motors.
  */
 void stopMotors()
 {
-  Serial.println("Stopping motors");
+  Serial.println("--- Stopping motors ---");
   // Left motor
   digitalWrite(in1, LOW);
   digitalWrite(in2, LOW);
@@ -107,29 +119,53 @@ void stopMotors()
   digitalWrite(in4, LOW);
 }
 
-void leftMotorForward(int speed)
+/**
+ * Run the left motor forward
+ * Don't call this function directly in main
+ */
+void leftMotorForward(uint8_t speed)
 {
+  Serial.print("Left motor forward at speed ");
+  Serial.println(speed);
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
   analogWrite(ena1, speed);
 }
 
-void rightMotorForward(int speed)
+/**
+ * Run the left motor backward
+ * Don't call this function directly in main
+ */
+void rightMotorForward(uint8_t speed)
 {
+  Serial.print("Right motor forward at speed ");
+  Serial.println(speed);
   digitalWrite(in3, HIGH);
   digitalWrite(in4, LOW);
   analogWrite(ena2, speed);
 }
 
-void leftMotorBackward(int speed)
+/**
+ * Run the left motor backward
+ * Don't call this function directly in main
+ */
+void leftMotorBackward(uint8_t speed)
 {
+  Serial.print("Left motor backward at speed ");
+  Serial.println(speed);
   digitalWrite(in1, LOW);
   digitalWrite(in2, HIGH);
   analogWrite(ena1, speed);
 }
 
-void rightMotorBackward(int speed)
+/**
+ * Run the right motor backward
+ * Don't call this function directly in main
+ */
+void rightMotorBackward(uint8_t speed)
 {
+  Serial.print("Right motor backward at ");
+  Serial.println(speed);
   digitalWrite(in3, LOW);
   digitalWrite(in4, HIGH);
   analogWrite(ena2, speed);
@@ -140,118 +176,66 @@ void rightMotorBackward(int speed)
  * @param leftSpeed: 0x00 to 0xFF
  * @param rightSpeed: 0x00 to 0xFF
  */
-void motorsForward(int leftSpeed, int rightSpeed)
+void goForward(uint8_t leftSpeed, uint8_t rightSpeed)
 {
   // Left motor
-  Serial.print("Running forward: Left: ");
-  Serial.print(leftSpeed);
+  Serial.println("--- Running forward ---");
   leftMotorForward(leftSpeed);
-
-  // Right motor
-  Serial.print(", Right: ");
-  Serial.println(rightSpeed);
   rightMotorForward(rightSpeed);
 }
 
-void turnRight(int speed)
+/**
+ * Run the motors at the given speed
+ * @param leftSpeed: 0x00 to 0xFF
+ * @param rightSpeed: 0x00 to 0xFF
+ */
+void goBackward(uint8_t leftSpeed, uint8_t rightSpeed)
 {
-  Serial.println("Turning right");
-  // Left motor continues forward
-  leftMotorForward(speed);
-
-  // Right motor going backward
-  rightMotorBackward(speed);
+  // Left motor
+  Serial.println("--- Running backward ---");
+  leftMotorBackward(leftSpeed);
+  rightMotorBackward(rightSpeed);
 }
 
-void turnLeft(int speed)
+/**
+ * Turn right
+ * @param speed: 0x00 to 0xFF
+ * @param turnDuration: in milliseconds
+ */
+void turnRight(uint8_t speed, int turnDuration)
 {
-  Serial.println("Turning left");
-  // Right motor continues forward
-  rightMotorForward(speed);
+  Serial.println("--- TURN RIGHT ---");
+  stopMotors();
+  delay(10);
 
-  // Left motor going backward
-  leftMotorBackward(speed);
+  // only left motor
+  goForward(speed, 0);
+  delay(turnDuration / 2);
+
+  stopMotors();
+  delay(10);
+
+  goBackward(0, speed);
+  delay(turnDuration / 2);
+  stopMotors();
 }
 
-void testMotorSpeed()
+void turnLeft(int speed, int turnDuration)
 {
-  Serial.println("First loop");
-  for (uint16_t i = 0x20; i <= 0xFF; i += 0x10)
-  {
-    motorsForward(i, i);
-    delay(1000);
-  }
+  Serial.println("--- TURN LEFT ---");
+  stopMotors();
+  delay(10);
 
-  Serial.println("Second loop");
-  for (uint16_t j = 0xFF; j >= 0x20; j -= 0x10)
-  {
-    motorsForward(j, j);
-    delay(1000);
-  }
-  stopMotors();
-  delay(5000);
-}
+  // only right motor
+  goForward(0, speed);
+  delay(turnDuration / 2);
 
-void testLeftMotions(int speed)
-{
-  Serial.println("Test left motions");
   stopMotors();
-  delay(100);
-  leftMotorForward(speed);
-  delay(2000);
-  stopMotors();
-  delay(100);
-  leftMotorBackward(speed);
-  delay(2000);
-  stopMotors();
-  delay(100);
-}
+  delay(10);
 
-void logicTest()
-{
-  Serial.println("Logic test");
-  Serial.println("0 0 state");
+  goBackward(speed, 0);
+  delay(turnDuration / 2);
   stopMotors();
-  delay(1000);
-  Serial.println("0 1 state");
-  leftMotorForward(0x40);
-  rightMotorForward(0x40);
-  delay(2000);
-  stopMotors();
-  Serial.println("1 0 state");
-  leftMotorBackward(0x40);
-  rightMotorBackward(0x40);
-  delay(2000);
-  stopMotors();
-  Serial.println("1 1 state");
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, HIGH);
-  digitalWrite(in3, HIGH);
-  digitalWrite(in4, HIGH);
-  delay(2000);
-  stopMotors();
-
-  Serial.println("Turning right");
-  rightMotorBackward(0x40);
-  leftMotorForward(0x40);
-  delay(2000);
-}
-
-void testTurningLeft(int speed)
-{
-  Serial.println("Test turning left");
-  stopMotors();
-  delay(100);
-  motorsForward(speed, speed);
-  delay(2000);
-  stopMotors();
-  delay(100);
-  turnLeft(speed);
-  delay(3000);
-  stopMotors();
-  delay(100);
-  turnRight(speed);
-  delay(1000);
 }
 
 /**
@@ -262,8 +246,9 @@ void setup()
   // put your setup code here, to run once:
   Serial.begin(9600);
   Serial.println("CyberTank is setting up...");
-  // setupUltrasonic();
+  setupUltrasonic();
   setupMotors();
+  setupIR();
   Serial.println("CyberTank is ready!");
 }
 
@@ -272,7 +257,14 @@ void setup()
  */
 void loop()
 {
-  // testTurningLeft(40);
-  logicTest();
-  // testLeftMotions(40);
+  // uint8_t testSpeed = 0x32;
+  // if(getUSDistance() < 10)
+  // {
+  //   stopMotors();
+  //   delay(100);
+  //   return;
+  // }
+  readAllIR();
+  // goForward(testSpeed, testSpeed);
+  delay(1000);
 }
