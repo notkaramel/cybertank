@@ -476,7 +476,6 @@ void loop()
   //   stopMotors();
   //   delay(1000);
   //   setup();
-  //   // wait for the next game to start
   // }
 
   // Making sure that the tank is in the zone. First priority!
@@ -506,40 +505,4 @@ void loop()
   {
     goForward(mediumSpeed, mediumSpeed);
   }
-
-  // int timeDelay = 5000;
-
-  // int TEST_MOTOR = 0;
-  // if (TEST_MOTOR == 1)
-  // {
-  //   goForward(minSpeed, minSpeed);
-  //   delay(timeDelay);
-  //   stopMotors();
-  //   delay(2000);
-  //   goForward(lowSpeed, lowSpeed);
-  //   delay(timeDelay);
-  //   stopMotors();
-  //   delay(2000);
-
-  //   goForward(160, 160);
-  //   delay(timeDelay);
-  //   stopMotors();
-  //   delay(2000);
-
-  //   goForward(maxSpeed, maxSpeed);
-  //   delay(timeDelay);
-  //   stopMotors();
-  //   delay(2000);
-  // }
-
-  // IR zone sensor has higher priority
-  // Step 1: scan for opponent
-
-  // if opponent is not found, keep scanning
-  // if found, set foundOpponent to true
-  // if opponent is found, attack
-
-  // Step 2: attack
-  // if opponent is in range, attack
-  // if not, move closer
 }

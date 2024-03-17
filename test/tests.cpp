@@ -81,3 +81,28 @@ void testMotorSpeed()
   stopMotors();
   delay(5000);
 }
+
+  // int timeDelay = 5000;
+
+  // int TEST_MOTOR = 0;
+  // if (TEST_MOTOR == 1)
+  // {
+  //   goForward(minSpeed, minSpeed);
+  //   delay(timeDelay);
+  //   stopMotors();
+  //   delay(2000);
+  //   goForward(lowSpeed, lowSpeed);
+  //   delay(timeDelay);
+  //   stopMotors();
+  //   delay(2000);
+
+  //   goForward(160, 160);
+  //   delay(timeDelay);
+  //   stopMotors();
+  //   delay(2000);
+
+  //   goForward(maxSpeed, maxSpeed);
+  //   delay(timeDelay);
+  //   stopMotors();
+  //   delay(2000);
+  // }
